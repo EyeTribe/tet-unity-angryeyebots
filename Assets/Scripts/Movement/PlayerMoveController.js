@@ -72,6 +72,13 @@ function Awake () {
 			joystickRightGO.name = "Joystick Right";
 			joystickRight = joystickRightGO.GetComponent.<Joystick> ();			
 		}
+    #elif UNITY_WIN_TOUCH
+
+        // Create left joystick
+        var joystickLeftGO : GameObject = Instantiate (joystickPrefab) as GameObject;
+        joystickLeftGO.name = "Joystick Left";
+        joystickLeft = joystickLeftGO.GetComponent.<Joystick> ();
+
 	#elif !UNITY_FLASH
 		if (cursorPrefab) {
 			cursorObject = (Instantiate (cursorPrefab) as GameObject).transform;
@@ -126,7 +133,7 @@ function OnEnable () {
 
 function Update () {
 	// HANDLE CHARACTER MOVEMENT DIRECTION
-	#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY
+	#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY || UNITY_WIN_TOUCH
 		motor.movementDirection = joystickLeft.position.x * screenMovementRight + joystickLeft.position.y * screenMovementForward;
 	#else
 		motor.movementDirection = Input.GetAxis ("Horizontal") * screenMovementRight + Input.GetAxis ("Vertical") * screenMovementForward;
@@ -156,12 +163,42 @@ function Update () {
 	
 	var cameraAdjustmentVector : Vector3 = Vector3.zero;
 	
-	#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY
+	#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY || UNITY_WIN_TOUCH
 	
 		// On mobiles, use the thumb stick and convert it into screen movement space
-		motor.facingDirection = joystickRight.position.x * screenMovementRight + joystickRight.position.y * screenMovementForward;
+		//motor.facingDirection = joystickRight.position.x * screenMovementRight + joystickRight.position.y * screenMovementForward;
 				
-		cameraAdjustmentVector = motor.facingDirection;		
+	    //cameraAdjustmentVector = motor.facingDirection;	
+
+        /* @TheEyeTribe
+         * 
+         * Using Gaze input to control aiming direction, fall back to mouse
+         */
+	    var cursorScreenPosition : Vector3;
+        if(null != gazeScript)
+            cursorScreenPosition = gazeScript.GetGazeScreenPosition();
+    
+        // Find out where the mouse ray intersects with the movement plane of the player
+        var cursorWorldPosition : Vector3 = ScreenPointToWorldPointOnPlane (cursorScreenPosition, playerMovementPlane, mainCamera);
+			
+        var halfWidth : float = Screen.width / 2.0f;
+        var halfHeight : float = Screen.height / 2.0f;
+        var maxHalf : float = Mathf.Max (halfWidth, halfHeight);
+			
+        // Acquire the relative screen position			
+        var posRel : Vector3 = cursorScreenPosition - Vector3 (halfWidth, halfHeight, cursorScreenPosition.z);		
+        posRel.x /= maxHalf; 
+        posRel.y /= maxHalf;
+						
+        cameraAdjustmentVector = posRel.x * screenMovementRight + posRel.y * screenMovementForward;
+        cameraAdjustmentVector.y = 0.0;	
+									
+        // The facing direction is the direction from the character to the cursor world position
+        motor.facingDirection = (cursorWorldPosition - character.position);
+        motor.facingDirection.y = 0;			
+			
+        // Draw the cursor nicely
+        HandleCursorAlignment (cursorWorldPosition);
 	
 	#else
 	
@@ -183,34 +220,34 @@ function Update () {
              * 
              * Using Gaze input to control aiming direction, fall back to mouse
              */
-	        var cursorScreenPosition : Vector3;
+            var cursorScreenPosition : Vector3;
             if(null != gazeScript)
                 cursorScreenPosition = gazeScript.GetGazeScreenPosition();
 
             if(null == cursorScreenPosition || cursorScreenPosition == Vector3.zero)
                 cursorScreenPosition = Input.mousePosition;
     
-			// Find out where the mouse ray intersects with the movement plane of the player
-			var cursorWorldPosition : Vector3 = ScreenPointToWorldPointOnPlane (cursorScreenPosition, playerMovementPlane, mainCamera);
+            // Find out where the mouse ray intersects with the movement plane of the player
+            var cursorWorldPosition : Vector3 = ScreenPointToWorldPointOnPlane (cursorScreenPosition, playerMovementPlane, mainCamera);
 			
-			var halfWidth : float = Screen.width / 2.0f;
-			var halfHeight : float = Screen.height / 2.0f;
-			var maxHalf : float = Mathf.Max (halfWidth, halfHeight);
+            var halfWidth : float = Screen.width / 2.0f;
+            var halfHeight : float = Screen.height / 2.0f;
+            var maxHalf : float = Mathf.Max (halfWidth, halfHeight);
 			
-			// Acquire the relative screen position			
-			var posRel : Vector3 = cursorScreenPosition - Vector3 (halfWidth, halfHeight, cursorScreenPosition.z);		
-			posRel.x /= maxHalf; 
-			posRel.y /= maxHalf;
+            // Acquire the relative screen position			
+            var posRel : Vector3 = cursorScreenPosition - Vector3 (halfWidth, halfHeight, cursorScreenPosition.z);		
+            posRel.x /= maxHalf; 
+            posRel.y /= maxHalf;
 						
-			cameraAdjustmentVector = posRel.x * screenMovementRight + posRel.y * screenMovementForward;
-			cameraAdjustmentVector.y = 0.0;	
+            cameraAdjustmentVector = posRel.x * screenMovementRight + posRel.y * screenMovementForward;
+            cameraAdjustmentVector.y = 0.0;	
 									
-			// The facing direction is the direction from the character to the cursor world position
-			motor.facingDirection = (cursorWorldPosition - character.position);
-			motor.facingDirection.y = 0;			
+            // The facing direction is the direction from the character to the cursor world position
+            motor.facingDirection = (cursorWorldPosition - character.position);
+            motor.facingDirection.y = 0;			
 			
-			// Draw the cursor nicely
-			HandleCursorAlignment (cursorWorldPosition);
+            // Draw the cursor nicely
+            HandleCursorAlignment (cursorWorldPosition);
 			
 		#endif
 		

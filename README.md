@@ -29,6 +29,7 @@ The following files from the original sample have been modded:
 
 - Assets/Scripts/Modules/TriggerOnMouseOrJoystick.js
 - Assets/Scripts/Movement/PlayerMoveController.js
+- Assets/Scripts/Movement/Joystick.js
 - Assets/AngryBots.unity
 
 
@@ -41,19 +42,23 @@ The following scripts were added to the sample:
 - Assets/Standard assets/GazeDataUtils.cs
 - Assets/Standard assets/UnityGazeUtils.cs
 
-Minor change in *Build Settings* was required to use [EyeTribe C# SDK](https://github.com/EyeTribe/tet-csharp-client). *Player Settings -> Windows -> Other Setting -> Api Compatibility Level* must be set to .NET 2.0
+Minor change in *Build Settings* was required to use [EyeTribe C# SDK](https://github.com/EyeTribe/tet-csharp-client). *Player Settings -> Windows -> Other Settings -> Api Compatibility Level* must be set to .NET 2.0
 
 
 Dependencies
 ----
 
-This sample has been developed in Unity 4.3.3 and uses the [EyeTribe C# SDK](https://github.com/EyeTribe/tet-csharp-client). 
+This sample has been developed in Unity 4.3.3 and uses the [EyeTribe C# SDK](https://github.com/EyeTribe/tet-csharp-client).
+
+For Windows desktop builds using touch, the [TouchScript](http://interactivelab.github.io/TouchScript/) framework is used.
 
 
 Build
 ----
 
-To build, open project in [Unity](http://unity3d.com/) and build for Windows OS.
+To build for regular Windows, open project in [Unity](http://unity3d.com/) and build for Windows OS.
+
+To build for touch enabled Windows devices (e.g. Surface Pro), open project in [Unity](http://unity3d.com/), go to *Player Settings -> Windows -> Other Settings -> Scripting Define Symbols* and write custom symbol **UNITY\_WIN\_TOUCH**. Then build for WIndows OS.
 
 Note that the EyeTribe Server currently supports Windows 7 and newer. Support for other platforms will be added in the future.
 
@@ -67,5 +72,11 @@ Should question arise, do not hesitate to post them on [The Eye Tribe Forum](htt
 Changelog
 ----
 
+0.9.34 (2014-05-09)
+
+- Updated C# SDK
+- Added touch support for Windows using TouchScript 
+
 0.9.26 (2014-02-03)
+
 - Initial release

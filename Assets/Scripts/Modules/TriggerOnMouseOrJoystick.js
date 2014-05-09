@@ -5,7 +5,7 @@ public var mouseUpSignals : SignalSender;
 
 private var state : boolean = false;
 
-#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY
+#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY || UNITY_WIN_TOUCH
 private var joysticks : Joystick[];
 
 function Start () {
@@ -15,6 +15,7 @@ function Start () {
 
 function Update () {
 #if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY
+
 	if (state == false && joysticks[0].tapCount > 0) {
 		mouseDownSignals.SendSignals (this);
 		state = true;
@@ -23,6 +24,13 @@ function Update () {
 		mouseUpSignals.SendSignals (this);
 		state = false;
 	}	
+
+#elif UNITY_WIN_TOUCH
+
+    //Autofire for win touch builds as multitouch is not handled well
+    mouseDownSignals.SendSignals (this);
+    state = true;
+
 #else	
 	#if !UNITY_EDITOR && (UNITY_XBOX360 || UNITY_PS3)
 		// On consoles use the right trigger to fire
