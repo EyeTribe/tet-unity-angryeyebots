@@ -1,4 +1,12 @@
-﻿using UnityEngine;
+﻿/*
+ * Copyright (c) 2013-present, The Eye Tribe. 
+ * All rights reserved.
+ *
+ * This source code is licensed under the BSD-style license found in the LICENSE file in the root directory of this source tree. 
+ *
+ */
+
+using UnityEngine;
 using System.Collections;
 using TETCSharpClient;
 using TETCSharpClient.Data;
@@ -29,14 +37,6 @@ public class GazeAngryBotsWrap : MonoBehaviour, IGazeListener
         gazeUtils.Update(gazeData);
     }
 
-    public void OnCalibrationStateChanged(bool isCalibrated)
-    {
-    }
-
-    public void OnScreenIndexChanged(int screenIndex) 
-    {
-    }
-
     void Update()
     {
         //handle keypress
@@ -58,29 +58,18 @@ public class GazeAngryBotsWrap : MonoBehaviour, IGazeListener
             Application.Quit();
         }
 
-        if (!GazeManager.Instance.IsConnected)
+        if (!GazeManager.Instance.IsActivated)
         {
             y += btnHeight + padding;
 
             if (GUI.Button(new Rect(padding, y, 200, btnHeight), "Connect To Server"))
             {
-            #if UNITY_ANDROID
-                //activate C# TET client, using android specific port
-                GazeManager.Instance.Activate
-                (
-                    GazeManager.ApiVersion.VERSION_1_0,
-                    GazeManager.ClientMode.Push,
-                    "localhost",
-                    6556
-                );
-            #else
                 //activate C# TET client, default port
                 GazeManager.Instance.Activate
                 (
                     GazeManager.ApiVersion.VERSION_1_0,
                     GazeManager.ClientMode.Push
                 );
-            #endif
             }
         }
         else

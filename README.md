@@ -72,6 +72,11 @@ Should question arise, do not hesitate to post them on [The Eye Tribe Forum](htt
 Changelog
 ----
 
+0.9.35 (2014-05-20)
+
+- Updated license
+- Updated C# SDK
+
 0.9.34 (2014-05-09)
 
 - Updated C# SDK
