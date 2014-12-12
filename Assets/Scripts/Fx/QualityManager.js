@@ -92,7 +92,7 @@ private function AutoDetectQuality ()
 			break;
 		}
 
-	#elif UNITY_ANDROID || UNITY_WP8 || UNITY_TIZEN
+	#elif UNITY_ANDROID || UNITY_WP8
 
 		currentQuality = Quality.Low;
 		
@@ -127,6 +127,8 @@ private function AutoDetectQuality ()
 			" (Android)"
 		#elif UNITY_WP8
 			" (Windows Phone)"
+        #elif WIN_TOUCH
+			" (Windows Touch)"
 		#elif UNITY_BLACKBERRY
 			" (Blackberry)"
 		#else

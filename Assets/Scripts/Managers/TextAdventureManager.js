@@ -18,7 +18,7 @@ function Start () {
 	var leftIcon = new GameObject ("Left Arrow", GUIText);
 	var rightIcon = new GameObject ("Right Arrow", GUIText);
 
-#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY || UNITY_TIZEN
+#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY || WIN_TOUCH
 	leftIcon.guiText.text = "<";
 #else
 	leftIcon.guiText.text = "< backspace";		
@@ -32,7 +32,7 @@ function Start () {
 	leftIcon.transform.position.x = 0.01f;
 	leftIcon.transform.position.y = 0.1f;
 
-#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY || UNITY_TIZEN
+#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY || WIN_TOUCH
 	rightIcon.guiText.text = ">";
 #else
 	rightIcon.guiText.text = "space >";		
@@ -106,7 +106,7 @@ function BeamToBox (index : int) {
 function CheckInput () {
 	var input : int = 0;
 	
-	#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY || UNITY_TIZEN
+	#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY || WIN_TOUCH
    		for (var touch : Touch in Input.touches) {
         	if (touch.phase == TouchPhase.Ended && touch.phase != TouchPhase.Canceled) {
             	if (touch.position.x < Screen.width / 2)

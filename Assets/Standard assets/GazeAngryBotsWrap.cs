@@ -10,16 +10,11 @@ using UnityEngine;
 using System.Collections;
 using TETCSharpClient;
 using TETCSharpClient.Data;
-using Assets.Scripts;
 
 public class GazeAngryBotsWrap : MonoBehaviour, IGazeListener
 {
-    private GazeDataValidator gazeUtils;
-
-	void Start () 
-    {    
-        gazeUtils = new GazeDataValidator(30);
-
+    void Start()
+    {
         //activate C# TET client, default port
         GazeManager.Instance.Activate
         (
@@ -29,12 +24,12 @@ public class GazeAngryBotsWrap : MonoBehaviour, IGazeListener
 
         //register for gaze updates
         GazeManager.Instance.AddGazeListener(this);
-	}
+    }
 
-    public void OnGazeUpdate(GazeData gazeData) 
+    public void OnGazeUpdate(GazeData gazeData)
     {
         //Add frame to GazeData cache handler
-        gazeUtils.Update(gazeData);
+        GazeDataValidator.Instance.Update(gazeData);
     }
 
     void Update()
@@ -73,21 +68,21 @@ public class GazeAngryBotsWrap : MonoBehaviour, IGazeListener
             }
         }
         else
-        if (!GazeManager.Instance.IsCalibrated)
-        {
-            y += btnHeight + padding;
-            GUI.TextArea(new Rect(padding, y, 190, 20), "EyeTribe Server not calibrated!");
-        }
-        else
-        {
-            y += btnHeight + padding;
+            if (!GazeManager.Instance.IsCalibrated)
+            {
+                y += btnHeight + padding;
+                GUI.TextArea(new Rect(padding, y, 190, 20), "EyeTribe Server not calibrated!");
+            }
+            else
+            {
+                y += btnHeight + padding;
 
-            string calibText;
-            int rating;
-            CalibrationResult result = GazeManager.Instance.LastCalibrationResult;
-            CalibrationRatingFunction(result, out rating, out calibText);
-            GUI.TextArea(new Rect(padding, y, 220, 20), "Calibration Result: " + calibText);
-        }
+                string calibText;
+                int rating;
+                CalibrationResult result = GazeManager.Instance.LastCalibrationResult;
+                CalibrationRatingFunction(result, out rating, out calibText);
+                GUI.TextArea(new Rect(padding, y, 220, 20), "Calibration Result: " + calibText);
+            }
     }
 
     void OnApplicationQuit()
@@ -96,9 +91,9 @@ public class GazeAngryBotsWrap : MonoBehaviour, IGazeListener
         GazeManager.Instance.Deactivate();
     }
 
-    public Vector3 GetGazeScreenPosition() 
+    public Vector3 GetGazeScreenPosition()
     {
-        Point2D gp = gazeUtils.GetLastValidSmoothedGazeCoordinates();
+        Point2D gp = GazeDataValidator.Instance.GetLastValidSmoothedGazeCoordinates();
 
         if (null != gp)
         {

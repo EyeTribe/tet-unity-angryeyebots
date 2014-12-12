@@ -56,11 +56,11 @@ For Windows desktop builds using touch, the [TouchScript](http://interactivelab.
 Build
 ----
 
-To build for regular Windows, open project in [Unity](http://unity3d.com/) and build for Windows OS.
+To build, open project in [Unity](http://unity3d.com/) and build for Windows OS or Mac OSX.
 
 To build for touch enabled Windows devices (e.g. Surface Pro), open project in [Unity](http://unity3d.com/), go to *Player Settings -> Windows -> Other Settings -> Scripting Define Symbols* and write custom symbol **UNITY\_WIN\_TOUCH**. Then build for WIndows OS.
 
-Note that the EyeTribe Server currently supports Windows 7 and newer. Support for other platforms will be added in the future.
+Note that the EyeTribe Server currently supports Windows 7 and newer as well as Mac OSX 10.8 and never. Support for other platforms will be added in the future.
 
 
 FAQ
@@ -71,6 +71,10 @@ Should question arise, do not hesitate to post them on [The Eye Tribe Forum](htt
 
 Changelog
 ----
+
+0.9.49 (2014-12-12)
+
+- Updated C# SDK
 
 0.9.35 (2014-05-20)
 

@@ -14,7 +14,7 @@ public var cookShadersCover : Material;
 private var cookShadersObject : GameObject;
 
 function Awake () {	
-#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY || UNITY_TIZEN
+#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY
 	Screen.sleepTimeout = 0.0f;
 
 	if (!cookShadersOnMobiles)
@@ -83,7 +83,7 @@ function DestroyCameraCoverPlane () {
 }
 
 function Start () {	
-#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY || UNITY_TIZEN
+#if UNITY_IPHONE || UNITY_ANDROID || UNITY_WP8 || UNITY_BLACKBERRY
 	if (cookShadersOnMobiles)
 		yield CookShaders ();	
 #endif

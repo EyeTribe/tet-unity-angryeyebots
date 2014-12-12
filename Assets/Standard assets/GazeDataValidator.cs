@@ -6,82 +6,122 @@
  *
  */
 
-using UnityEngine;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using TETCSharpClient.Data;
+using UnityEngine;
 
-namespace Assets.Scripts
+
+/// <summary>
+/// Utility class that maintains a run-time cache of GazeData frames. Based on the cache 
+/// the class analyzes the frame history and finds the currently valid gaze data.
+/// Use this class to avoid the 'glitch' effect of occational poor tracking.
+/// </summary>
+class GazeDataValidator
 {
-    /// <summary>
-    /// Utility class that maintains a run-time cache of GazeData frames. Based on the cache 
-    /// the class analyzes the frame history and finds the currently valid gaze data.
-    /// Use this class to avoid the 'glitch' effect of occational poor tracking.
-    /// </summary>
-    class GazeDataValidator
+    #region Constants
+
+    internal const long DEFAULT_CACHE_TIME_FRAME_MILLIS = 500;
+    internal const int NO_TRACKING_MASK = GazeData.STATE_TRACKING_FAIL | GazeData.STATE_TRACKING_LOST;
+
+    #endregion
+
+    #region Variables
+
+    protected double _MinimumEyesDistance = 0.1f;
+    protected double _MaximumEyesDistance = 0.275f;
+
+    protected GazeDataQueue _GazeFrameCache;
+
+    protected Eye _LastValidLeftEye;
+    protected Eye _LastValidRightEye;
+
+    protected Point2D _LastValidRawGazeCoords;
+    protected Point2D _LastValidSmoothedGazeCoords;
+
+    protected Point3D _LastValidUserPosition;
+    protected Point2D _LastValidEyesDistHalfVec;
+    protected double _LastValidEyeDistance;
+    protected double _LastValidEyeAngle;
+
+    #endregion
+
+    #region Private methods
+
+    private GazeDataValidator(long queueLengthMillis)
     {
-        private double _MinimumEyesDistance = 0.1f;
-        private double _MaximumEyesDistance = 0.3f;
+        _GazeFrameCache = new GazeDataQueue(queueLengthMillis);
+        _LastValidUserPosition = new Point3D();
+        _LastValidEyesDistHalfVec = new Point2D();
+    }
 
-        private FixedSizeQueue<GazeData> _Frames;
+    public static GazeDataValidator Instance
+    {
+        get { return Holder.INSTANCE; }
+    }
 
-        private Eye _LastValidLeftEye;
-        private Eye _LastValidRightEye ;
+    private class Holder
+    {
+        static Holder() { }
+        //thread-safe initialization on demand
+        internal static readonly GazeDataValidator INSTANCE = new GazeDataValidator(DEFAULT_CACHE_TIME_FRAME_MILLIS);
+    }
 
-        private Point2D _LastValidRawGazeCoords;
-        private Point2D _LastValidSmoothedGazeCoords;
-        private Point2D _LastValidUserPosition;
+    public virtual void Update(GazeData frame)
+    {
+        _GazeFrameCache.Enqueue(frame);
 
-        private double _LastValidEyeDistance;
-        private double _LastValidEyeAngle;
-
-        public GazeDataValidator(int queueLength)
+        // update valid gazedata based on store
+        Eye right = null, left = null;
+        Point2D gazeCoords = null;
+        Point2D gazeCoordsSmooth = null;
+        Point2D userPos = null;
+        double userDist = 0d;
+        Point2D eyeDistVecHalf = null;
+        GazeData gd;
+        lock (_GazeFrameCache)
         {
-            _Frames = new FixedSizeQueue<GazeData>(queueLength);
-            _LastValidUserPosition = new Point2D();
-        }
-
-        public void Update(GazeData frame)
-        {
-            _Frames.Enqueue(frame);
-
-            // update valid gazedata based on store
-            Eye right = null, left = null;
-            Point2D gazeCoords = null;
-            Point2D gazeCoordsSmooth = null;
-            GazeData gd;
-            for (int i = _Frames.Count; --i >= 0; )
+            for (int i = _GazeFrameCache.Count; --i >= 0; )
             {
-                gd = _Frames.ElementAt(i);
+                gd = _GazeFrameCache.ElementAt(i);
 
                 // if no tracking problems, then cache eye data
-                if ((gd.State & GazeData.STATE_TRACKING_FAIL) == 0 && (gd.State & GazeData.STATE_TRACKING_LOST) == 0)
+                if ((gd.State & NO_TRACKING_MASK) == 0)
                 {
-                    if (null == left && null != gd.LeftEye && gd.LeftEye.PupilCenterCoordinates.X != 0 && gd.LeftEye.PupilCenterCoordinates.Y != 0)
-                        left = gd.LeftEye;
-                    if (null == right && null != gd.RightEye && gd.RightEye.PupilCenterCoordinates.X != 0 && gd.RightEye.PupilCenterCoordinates.Y != 0)
-                        right = gd.RightEye;
-                }
+                    if (null == userPos &&
+                        !gd.LeftEye.PupilCenterCoordinates.Equals(Point2D.zero) &&
+                        !gd.RightEye.PupilCenterCoordinates.Equals(Point2D.zero))
+                    {
+                        userPos = (gd.LeftEye.PupilCenterCoordinates + gd.RightEye.PupilCenterCoordinates) / 2;
+                        eyeDistVecHalf = (gd.RightEye.PupilCenterCoordinates - gd.LeftEye.PupilCenterCoordinates) / 2;
+                        userDist = UnityGazeUtils.getDistancePoint2D(gd.LeftEye.PupilCenterCoordinates, gd.RightEye.PupilCenterCoordinates);
 
-                // if gaze coordinates available, cache both raw and smoothed
-                if (/*(gd.State & GazeData.STATE_TRACKING_GAZE) != 0 && */null == gazeCoords && gd.RawCoordinates.X != 0 && gd.RawCoordinates.Y != 0)
-                {
-                    gazeCoords = gd.RawCoordinates;
-                    gazeCoordsSmooth = gd.SmoothedCoordinates;
+                        left = gd.LeftEye;
+                        right = gd.RightEye;
+                    }
+                    else if (null == userPos && left == null && !gd.LeftEye.PupilCenterCoordinates.Equals(Point2D.zero))
+                    {
+                        left = gd.LeftEye;
+                    }
+                    else if (null == userPos && right == null && !gd.RightEye.PupilCenterCoordinates.Equals(Point2D.zero))
+                    {
+                        right = gd.RightEye;
+                    }
+
+                    // if gaze coordinates available, cache both raw and smoothed
+                    if (/*(gd.State & GazeData.STATE_TRACKING_GAZE) != 0 && */null == gazeCoords && !gd.RawCoordinates.Equals(Point2D.zero))
+                    {
+                        gazeCoords = gd.RawCoordinates;
+                        gazeCoordsSmooth = gd.SmoothedCoordinates;
+                    }
                 }
 
                 // break loop if valid values found
-                if (null != right && null != left && null != gazeCoords)
-                    break;    
+                if (null != userPos && null != gazeCoords)
+                    break;
             }
-
-            if (null != left)
-                _LastValidLeftEye = left;
-
-            if (null != right)
-                _LastValidRightEye = right;
 
             if (null != gazeCoords)
             {
@@ -89,97 +129,184 @@ namespace Assets.Scripts
                 _LastValidSmoothedGazeCoords = gazeCoordsSmooth;
             }
 
+            if (null != eyeDistVecHalf)
+                _LastValidEyesDistHalfVec = eyeDistVecHalf;
+
             //Update user position values if needed data is valid
-            if (null != _LastValidLeftEye && null != _LastValidRightEye)
+            if (null != userPos)
             {
-                //update user position
-                lock (_LastValidUserPosition)
-                {
-                    _LastValidUserPosition.X = (_LastValidLeftEye.PupilCenterCoordinates.X + _LastValidRightEye.PupilCenterCoordinates.X) / 2;
-                    _LastValidUserPosition.Y = (_LastValidLeftEye.PupilCenterCoordinates.Y + _LastValidRightEye.PupilCenterCoordinates.Y) / 2;
-                }
+                _LastValidLeftEye = left;
+                _LastValidRightEye = right;
 
                 //update 'depth' measure
-                double dist = Point2DDistance(_LastValidLeftEye, _LastValidRightEye);
+                if (userDist < _MinimumEyesDistance)
+                    _MinimumEyesDistance = userDist;
 
-                if (dist < _MinimumEyesDistance)
-                    _MinimumEyesDistance = dist;
+                if (userDist > _MaximumEyesDistance)
+                    _MaximumEyesDistance = userDist;
 
-                if (dist > _MaximumEyesDistance)
-                    _MaximumEyesDistance = dist;
+                //_LastValidEyeDistance = _LastValidEyeDistance / (_MaximumEyesDistance - _MinimumEyesDistance);
+                _LastValidEyeDistance = 1 - (userDist / _MaximumEyesDistance);
 
-                _LastValidEyeDistance = dist / (_MaximumEyesDistance - _MinimumEyesDistance);
+                //update user position
+                _LastValidUserPosition = new Point3D(userPos.X, userPos.Y, _LastValidEyeDistance);
+
+                //map to normalized 3D space
+                _LastValidUserPosition.X = (_LastValidUserPosition.X * 2) - 1;
+                _LastValidUserPosition.Y = (_LastValidUserPosition.Y * 2) - 1;
 
                 //update angle
                 _LastValidEyeAngle = ((180 / Math.PI * Math.Atan2(_LastValidRightEye.PupilCenterCoordinates.Y - _LastValidLeftEye.PupilCenterCoordinates.Y,
                     _LastValidRightEye.PupilCenterCoordinates.X - _LastValidLeftEye.PupilCenterCoordinates.X)));
+
             }
-        }
-
-        private double Point2DDistance(Eye ge1, Eye ge2)
-        {
-            return Math.Abs( Math.Sqrt(Math.Pow(ge2.PupilCenterCoordinates.X - ge1.PupilCenterCoordinates.X, 2) + Math.Pow(ge2.PupilCenterCoordinates.Y - ge1.PupilCenterCoordinates.Y, 2)) );
-        }
-
-        public Point2D GetLastValidUserPosition()
-        {
-            return _LastValidUserPosition;
-        }
-
-        public Eye GetLastValidLeftEye()
-        {
-            return _LastValidLeftEye;
-        }
-
-        public Eye GetLastValidRightEye()
-        {
-            return _LastValidRightEye;
-        }
-
-        public double GetLastValidUserDistance()
-        {
-            return _LastValidEyeDistance;
-        }
-
-        public double GetLastValidEyesAngle()
-        {
-            return _LastValidEyeAngle;
-        }
-
-        public Point2D GetLastValidRawGazeCoordinates()
-        {
-            return _LastValidRawGazeCoords;
-        }
-
-        public Point2D GetLastValidSmoothedGazeCoordinates()
-        {
-            return _LastValidSmoothedGazeCoords;
-        }
-    }
-
-    class FixedSizeQueue<T> : Queue<T>
-    {
-        private int limit = -1;
-
-        public int Limit
-        {
-            get { return limit; }
-            set { limit = value; }
-        }
-
-        public FixedSizeQueue(int limit)
-            : base(limit)
-        {
-            this.Limit = limit;
-        }
-
-        public new void Enqueue(T item)
-        {
-            while (this.Count >= this.Limit)
+            else if (null != left)
             {
-                this.Dequeue();
+                _LastValidLeftEye = left;
+                _LastValidRightEye = null;
+                Point2D newPos = _LastValidLeftEye.PupilCenterCoordinates + _LastValidEyesDistHalfVec;
+                _LastValidUserPosition = new Point3D(newPos.X, newPos.Y, _LastValidEyeDistance);
+
+                //map to normalized 3D space
+                _LastValidUserPosition.X = (_LastValidUserPosition.X * 2) - 1;
+                _LastValidUserPosition.Y = (_LastValidUserPosition.Y * 2) - 1;
+
             }
-            base.Enqueue(item);
+            else if (null != right)
+            {
+                _LastValidRightEye = right;
+                _LastValidLeftEye = null;
+                Point2D newPos = _LastValidRightEye.PupilCenterCoordinates - _LastValidEyesDistHalfVec;
+                _LastValidUserPosition = new Point3D(newPos.X, newPos.Y, _LastValidEyeDistance);
+
+                //map to normalized 3D space
+                _LastValidUserPosition.X = (_LastValidUserPosition.X * 2) - 1;
+                _LastValidUserPosition.Y = (_LastValidUserPosition.Y * 2) - 1;
+            }
+            else
+            {
+                _LastValidRightEye = null;
+                _LastValidLeftEye = null;
+            }
         }
     }
+
+    /// <summary>
+    /// Position of user in normalized right-handed 3D space with respect to device. Approximated from position of eyes.
+    /// </summary>
+    /// <returns>Normalized 3d position</returns>
+    public Point3D GetLastValidUserPosition()
+    {
+        return _LastValidUserPosition;
+    }
+
+    public Eye GetLastValidLeftEye()
+    {
+        return _LastValidLeftEye;
+    }
+
+    public Eye GetLastValidRightEye()
+    {
+        return _LastValidRightEye;
+    }
+
+    public double GetLastValidEyesAngle()
+    {
+        return _LastValidEyeAngle;
+    }
+
+    public Point2D GetLastValidRawGazeCoordinates()
+    {
+        return _LastValidRawGazeCoords;
+    }
+
+    public Point2D GetLastValidSmoothedGazeCoordinates()
+    {
+        return _LastValidSmoothedGazeCoords;
+    }
+
+    public Vector3 GetLastValidRawUnityGazeCoordinate()
+    {
+        return GetGazeScreenPosition(_LastValidRawGazeCoords);
+    }
+
+    public Vector3 GetLastValidSmoothedUnityGazeCoordinate()
+    {
+        return GetGazeScreenPosition(_LastValidSmoothedGazeCoords);
+    }
+
+    private Vector3 GetGazeScreenPosition(Point2D gp)
+    {
+        if (null != gp)
+        {
+            Point2D sp = UnityGazeUtils.getGazeCoordsToUnityWindowCoords(gp);
+            return new Vector3((float)sp.X, (float)sp.Y, 0f);
+        }
+        else
+            return Vector3.zero;
+    }
+
+    public float GetAvgFramesPerSecond()
+    {
+        float avgMillis;
+        if ((avgMillis = GetAvgMillisFrame()) > 0)
+            return 1000 / avgMillis;
+
+        return -1;
+    }
+
+    public float GetAvgMillisFrame()
+    {
+        lock (_GazeFrameCache)
+        {
+            GazeData first = _GazeFrameCache.First();
+            GazeData last = _GazeFrameCache.Last();
+
+            if (null != first && null != last)
+            {
+                float delta = last.TimeStamp - first.TimeStamp;
+                return delta / _GazeFrameCache.Count();
+            }
+        }
+
+        return -1;
+    }
+
+    #endregion
 }
+
+/// <summary>
+/// Structure holding latest valid GazeData objects. Based on a time limit, the deque 
+/// size is moderated as new items are added.
+/// </summary>
+class GazeDataQueue : Queue<GazeData>
+{
+    #region Variables
+
+    public long TimeLimit { get; set; }
+
+    #endregion
+
+    #region Public methods
+
+    public GazeDataQueue(long timeLimit)
+        : base()
+    {
+        this.TimeLimit = timeLimit;
+    }
+
+    public new void Enqueue(GazeData gd)
+    {
+        GazeData last;
+
+        while (base.Count > 0 && null != (last = base.Peek()) && UnityGazeUtils.GetTimeDeltaNow(last) > TimeLimit)
+        {
+            base.Dequeue();
+        }
+
+        base.Enqueue(gd);
+    }
+
+    #endregion
+}
+
